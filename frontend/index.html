@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+<html lang="el">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Χριστουγεννιάτικο Ημερολόγιο</title>
+<style>
+  /* Τα χρώματα που χρησιμοποιούνται σε όλη τη σελίδα, μαζεμένα σε ένα σημείο για να αλλάζουν εύκολα */
+  :root {
+    --ink: #000;
+    --bg: #d9d9d9;
+    --red-top: #c80000;
+    --red-bottom: #6b0000;
+    --snow: #fff;
+    --snow-grey: #c9ced3;
+    --text: #fff;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: "Trebuchet MS", "Segoe UI", Verdana, sans-serif;
+    min-height: 100vh;
+  }
+
+  /* Το μεγάλο κόκκινο σχήμα με τις ανώμαλες χιονισμένες άκρες. Το ίδιο το σχήμα ζωγραφίζεται από το script πιο κάτω. */
+  .stage {
+    position: relative;
+    min-height: 100vh;
+    padding: 70px 60px 90px;
+  }
+  .stage svg.shape {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 0;
+    pointer-events: none;
+  }
+  .stage > *:not(svg) { position: relative; z-index: 1; }
+
+  /* Πάνω μπάρα: μενού αριστερά, λογότυπο δεξιά */
+  header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 20px;
+  }
+  nav { display: flex; gap: 70px; padding-top: 22px; padding-left: 30px; }
+  nav a {
+    color: var(--text);
+    text-decoration: none;
+    font-size: 1.6rem;
+    letter-spacing: 1px;
+    text-shadow: 2px 2px 0 var(--ink), -1px -1px 0 var(--ink), 1px -1px 0 var(--ink), -1px 1px 0 var(--ink);
+    padding: 4px 2px;
+    border-bottom: 3px solid transparent;
+  }
+  nav a:hover, nav a:focus-visible { border-bottom-color: var(--snow); outline: none; }
+  nav a.active { border-bottom-color: var(--snow); }
+
+  /* Το λογότυπο μπαίνει στο logo.png δίπλα σε αυτό το αρχείο. Δεν έχει φόντο ή περίγραμμα, ώστε να φαίνεται η διαφάνειά του. */
+  .logo {
+    width: 340px;
+    height: 160px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+  .logo img { max-width: 100%; max-height: 100%; display: block; }
+
+  /* Οι σελίδες αλλάζουν από το μενού, φαίνεται μόνο μία κάθε φορά */
+  .page { display: none; }
+  .page.active { display: block; }
+
+  /* Αρχική σελίδα: κείμενο αριστερά, προϊόν δεξιά */
+  .home {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 50px;
+    align-items: center;
+    margin-top: 70px;
+  }
+  .home h1 {
+    font-size: clamp(2rem, 4vw, 3.2rem);
+    line-height: 1.1;
+    margin: 0 0 22px;
+    text-shadow: 3px 3px 0 var(--ink), -1px -1px 0 var(--ink), 1px -1px 0 var(--ink), -1px 1px 0 var(--ink);
+  }
+  .home p { font-size: 1.35rem; line-height: 1.55; margin: 0 0 16px; max-width: 34em; text-shadow: 1px 1px 0 var(--ink); }
+
+  .product {
+    border: 4px solid var(--ink);
+    background: var(--ink);
+    aspect-ratio: 8 / 7;
+    position: relative;
+    box-shadow: 8px 8px 0 rgba(0,0,0,.35);
+    overflow: hidden;
+  }
+  /* Η φωτογραφία του προϊόντος μπαίνει στο product.png. Μέχρι τότε εμφανίζεται ένα ζωγραφισμένο ημερολόγιο με μικρά παραθυράκια. */
+  .product img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; z-index: 2; display: none; }
+  .product.has-photo img { display: block; }
+  .doors {
+    position: absolute; inset: 0;
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 8px;
+    padding: 12px;
+    background: #2a0000;
+  }
+  .door {
+    border: 3px solid var(--ink);
+    background: linear-gradient(160deg, #d40000, #7a0000);
+    color: var(--text);
+    display: flex; align-items: center; justify-content: center;
+    font-weight: bold; font-size: 1.25rem;
+    text-shadow: 1px 1px 0 var(--ink);
+    position: relative;
+  }
+  /* Κάθε παράθυρο αλλάζει λίγο χρώμα όταν περνάς από πάνω το ποντίκι */
+  .door::after {
+    content: "";
+    position: absolute; right: 5px; top: 50%;
+    width: 6px; height: 6px; border-radius: 50%;
+    background: var(--snow); border: 1px solid var(--ink);
+  }
+  .door:hover { background: linear-gradient(160deg, #f10000, #8f0000); }
+
+  /* Σελίδα εξαργύρωσης */
+  .redeem { max-width: 560px; margin: 70px auto 0; }
+  .redeem h1 {
+    font-size: clamp(2rem, 4vw, 3rem);
+    margin: 0 0 12px;
+    text-shadow: 3px 3px 0 var(--ink), -1px -1px 0 var(--ink), 1px -1px 0 var(--ink), -1px 1px 0 var(--ink);
+  }
+  .redeem p.lead { font-size: 1.2rem; line-height: 1.5; margin: 0 0 24px; text-shadow: 1px 1px 0 var(--ink); }
+  .status {
+    border: 3px solid var(--ink);
+    background: var(--snow);
+    color: var(--ink);
+    padding: 12px 16px;
+    font-size: 1.1rem;
+    margin-bottom: 22px;
+    box-shadow: 5px 5px 0 rgba(0,0,0,.35);
+  }
+  form { display: grid; gap: 16px; }
+  label { font-size: 1.15rem; text-shadow: 1px 1px 0 var(--ink); }
+  input {
+    width: 100%;
+    margin-top: 6px;
+    padding: 14px 16px;
+    font: inherit; font-size: 1.15rem;
+    color: var(--ink);
+    background: var(--snow);
+    border: 3px solid var(--ink);
+    border-radius: 0;
+  }
+  input:focus-visible { outline: 4px solid var(--snow-grey); }
+  input:disabled { background: var(--snow-grey); cursor: not-allowed; }
+  button {
+    font: inherit; font-size: 1.25rem; font-weight: bold;
+    padding: 14px 20px;
+    background: var(--snow);
+    color: var(--ink);
+    border: 3px solid var(--ink);
+    cursor: pointer;
+    box-shadow: 5px 5px 0 var(--ink);
+  }
+  button:hover:not(:disabled) { background: var(--snow-grey); }
+  button:active:not(:disabled) { transform: translate(3px, 3px); box-shadow: 2px 2px 0 var(--ink); }
+  button:disabled { opacity: .6; cursor: not-allowed; }
+  .msg { min-height: 1.6em; font-size: 1.2rem; font-weight: bold; text-shadow: 1px 1px 0 var(--ink); }
+  .msg.ok { color: #fff; }
+  .msg.bad { color: #ffd0d0; }
+
+  @media (max-width: 800px) {
+    .stage { padding: 40px 22px 70px; }
+    nav { gap: 24px; padding-left: 8px; }
+    nav a { font-size: 1.15rem; }
+    .logo { width: 190px; height: 90px; }
+    .home { grid-template-columns: 1fr; margin-top: 40px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="stage" id="stage">
+  <!-- Το κόκκινο σχήμα και το χιόνι ζωγραφίζονται εδώ από το script -->
+  <svg class="shape" id="shape" preserveAspectRatio="none" aria-hidden="true"></svg>
+
+  <header>
+    <nav>
+      <a href="#home" id="nav-home" class="active">ΑΡΧΙΚΗ</a>
+      <a href="#redeem" id="nav-redeem">ΕΞΑΡΓΥΡΩΣΗ</a>
+    </nav>
+    <div class="logo">
+      <img src="logo.png" alt="Λογότυπο" onerror="this.remove()">
+    </div>
+  </header>
+
+  <main>
+    <section class="page active" id="page-home">
+      <div class="home">
+        <div>
+          <h1>Το Χριστουγεννιάτικο Ημερολόγιο</h1>
+          <p>Ένα παράθυρο για κάθε μέρα και μια γλυκιά έκπληξη πίσω από το καθένα. Άνοιγε κάθε πρωί ένα νέο παραθυράκι και βρες μια λιχουδιά που σε περιμένει.</p>
+          <p>24 παράθυρα, 24 καραμέλες και μια αντίστροφη μέτρηση γεμάτη γλύκα, από την πρώτη μέρα μέχρι τα Χριστούγεννα.</p>
+        </div>
+        <div class="product" id="product">
+          <img src="product.png" alt="Το ημερολόγιο" onload="document.getElementById('product').classList.add('has-photo')">
+          <div class="doors" id="doors"></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="page" id="page-redeem">
+      <div class="redeem">
+        <h1>Εξαργύρωση</h1>
+        <p class="lead">Γράψε το όνομά σου και τον κωδικό που βρήκες στο ημερολόγιο για να μπεις στην κλήρωση του δώρου.</p>
+        <div class="status" id="status">Φόρτωση...</div>
+        <form id="form" autocomplete="off">
+          <label>Όνομα
+            <input type="text" id="name" maxlength="60" required>
+          </label>
+          <label>Κωδικός
+            <input type="text" id="code" maxlength="40" required>
+          </label>
+          <button type="submit" id="send">Εξαργύρωση</button>
+          <div class="msg" id="msg" role="status" aria-live="polite"></div>
+        </form>
+      </div>
+    </section>
+  </main>
+</div>
+
+<script>
+/* ---------- Αλλαγή σελίδας ---------- */
+// Δείξε τη σελίδα που ταιριάζει με το λινκ στη γραμμή διευθύνσεων
+function showPage() {
+  var which = location.hash === '#redeem' ? 'redeem' : 'home';
+  document.getElementById('page-home').classList.toggle('active', which === 'home');
+  document.getElementById('page-redeem').classList.toggle('active', which === 'redeem');
+  document.getElementById('nav-home').classList.toggle('active', which === 'home');
+  document.getElementById('nav-redeem').classList.toggle('active', which === 'redeem');
+  drawShape();
+}
+window.addEventListener('hashchange', showPage);
+
+/* ---------- Μικρά παράθυρα ημερολογίου (φαίνονται μέχρι να μπει η πραγματική φωτογραφία) ---------- */
+(function () {
+  var box = document.getElementById('doors');
+  for (var i = 1; i <= 24; i++) {
+    var d = document.createElement('div');
+    d.className = 'door';
+    d.textContent = i;
+    box.appendChild(d);
+  }
+})();
+
+/* ---------- Ανώμαλες χιονισμένες άκρες ---------- */
+// Μια μικρή γεννήτρια τυχαίων αριθμών, ώστε οι άκρες να φαίνονται ίδιες κάθε φορά που ζωγραφίζεται η σελίδα
+function makeRandom(seed) {
+  return function () {
+    seed = (seed * 16807) % 2147483647;
+    return (seed - 1) / 2147483646;
+  };
+}
+
+// Γυρνάμε γύρω από ένα ορθογώνιο και μετακινούμε λίγο κάθε σημείο, ώστε η άκρη να φαίνεται κομμένη στο χέρι
+function wobblyPath(w, h, inset, wobble, seed, step) {
+  var rnd = makeRandom(seed);
+  var pts = [];
+  var x, y;
+  function off() { return inset + rnd() * wobble; }
+  for (x = 0; x <= w; x += step * (0.6 + rnd() * 0.8)) pts.push([x, off()]);           // πάνω
+  for (y = 0; y <= h; y += step * (0.6 + rnd() * 0.8)) pts.push([w - off(), y]);       // δεξιά
+  for (x = w; x >= 0; x -= step * (0.6 + rnd() * 0.8)) pts.push([x, h - off() * 0.4]); // κάτω
+  for (y = h; y >= 0; y -= step * (0.6 + rnd() * 0.8)) pts.push([off(), y]);           // αριστερά
+  return 'M' + pts.map(function (p) { return p[0].toFixed(1) + ',' + p[1].toFixed(1); }).join(' L') + ' Z';
+}
+
+function drawShape() {
+  var stage = document.getElementById('stage');
+  var svg = document.getElementById('shape');
+  var w = stage.clientWidth, h = stage.clientHeight;
+  svg.setAttribute('viewBox', '0 0 ' + w + ' ' + h);
+
+  // Τρία στρώματα: γκρι σκιά του χιονιού, λευκό χιόνι, και από πάνω η κόκκινη διαβάθμιση
+  var greySnow = wobblyPath(w, h, 6, 46, 11, 34);
+  var whiteSnow = wobblyPath(w, h, 6, 34, 7, 30);
+  var red = wobblyPath(w, h, 40, 22, 3, 40);
+
+  svg.innerHTML =
+    '<defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1">' +
+    '<stop offset="0" stop-color="#c80000"/><stop offset="1" stop-color="#5e0000"/>' +
+    '</linearGradient></defs>' +
+    '<path d="' + greySnow + '" fill="#c9ced3" stroke="#000" stroke-width="3" stroke-linejoin="round"/>' +
+    '<path d="' + whiteSnow + '" fill="#ffffff" stroke="#000" stroke-width="3" stroke-linejoin="round"/>' +
+    '<path d="' + red + '" fill="url(#g)" stroke="#000" stroke-width="3" stroke-linejoin="round"/>';
+}
+window.addEventListener('resize', drawShape);
+
+/* ---------- Φόρμα εξαργύρωσης ---------- */
+// Η διεύθυνση του backend στο Render (άλλαξε το όνομα με αυτό που θα πάρει η υπηρεσία σου). Τοπικά χρησιμοποιείται το localhost.
+// Ο πραγματικός έλεγχος (ημερομηνία και κωδικός) γίνεται στο backend, όχι σε αυτή τη σελίδα.
+var API = (location.hostname === 'localhost' || location.hostname === '127.0.0.1')
+  ? 'http://localhost:3000/api'
+  : 'https://xmas-backend.onrender.com/api';
+
+var statusBox = document.getElementById('status');
+var form = document.getElementById('form');
+var msg = document.getElementById('msg');
+var sendBtn = document.getElementById('send');
+var inputs = [document.getElementById('name'), document.getElementById('code')];
+var countdownTimer = null;
+
+// Κλείδωμα ή ξεκλείδωμα των πεδίων της φόρμας
+function setLocked(locked) {
+  inputs.forEach(function (i) { i.disabled = locked; });
+  sendBtn.disabled = locked;
+}
+
+// Μετατροπή χιλιοστών του δευτερολέπτου σε κείμενο που διαβάζεται εύκολα
+function formatLeft(ms) {
+  var s = Math.floor(ms / 1000);
+  var d = Math.floor(s / 86400); s -= d * 86400;
+  var hh = Math.floor(s / 3600); s -= hh * 3600;
+  var m = Math.floor(s / 60); s -= m * 60;
+  return d + ' ημέρες, ' + hh + ' ώρες, ' + m + ' λεπτά, ' + s + ' δευτ.';
+}
+
+// Ρώτα το backend αν η εξαργύρωση έχει ανοίξει, και δείξε αντίστροφη μέτρηση αν όχι
+function loadStatus() {
+  fetch(API + '/status')
+    .then(function (r) { return r.json(); })
+    .then(function (data) {
+      if (data.unlocked) {
+        statusBox.textContent = 'Η εξαργύρωση είναι ανοιχτή! Γράψε τον κωδικό σου.';
+        setLocked(false);
+        return;
+      }
+      setLocked(true);
+      var target = new Date(data.unlockAt).getTime();
+      function tick() {
+        var left = target - Date.now();
+        if (left <= 0) { clearInterval(countdownTimer); loadStatus(); return; }
+        statusBox.textContent = 'Η εξαργύρωση ανοίγει σε: ' + formatLeft(left);
+      }
+      clearInterval(countdownTimer);
+      tick();
+      countdownTimer = setInterval(tick, 1000);
+    })
+    .catch(function () {
+      statusBox.textContent = 'Δεν μπορούμε να συνδεθούμε αυτή τη στιγμή. Δοκίμασε ξανά σε λίγο.';
+      setLocked(true);
+    });
+}
+
+// Στείλε το όνομα και τον κωδικό στο backend
+form.addEventListener('submit', function (e) {
+  e.preventDefault();
+  msg.className = 'msg';
+  msg.textContent = '';
+  sendBtn.disabled = true;
+
+  fetch(API + '/redeem', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      name: document.getElementById('name').value.trim(),
+      code: document.getElementById('code').value.trim()
+    })
+  })
+    .then(function (r) { return r.json().then(function (d) { return { ok: r.ok, data: d }; }); })
+    .then(function (res) {
+      if (res.ok && res.data.success) {
+        msg.className = 'msg ok';
+        msg.textContent = 'Μπράβο! Σημειώθηκες για το δώρο.';
+        form.reset();
+      } else {
+        msg.className = 'msg bad';
+        msg.textContent = res.data.message || 'Ο κωδικός δεν είναι σωστός. Δοκίμασε ξανά.';
+      }
+      sendBtn.disabled = false;
+    })
+    .catch(function () {
+      msg.className = 'msg bad';
+      msg.textContent = 'Κάτι πήγε στραβά. Δοκίμασε ξανά σε λίγο.';
+      sendBtn.disabled = false;
+    });
+});
+
+setLocked(true);
+loadStatus();
+showPage();
+</script>
+</body>
+</html>
