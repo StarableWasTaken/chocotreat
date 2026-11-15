@@ -13,7 +13,7 @@
     --salmon: #ff5a5a;
     --green: #1fa51f;
     --white: #ffffff;
-    --drop: calc(50vh - 75px);   /* πόσο χαμηλά ξεκινάει ο τίτλος (στο κέντρο της οθόνης) */
+    --drop: calc(50dvh - 75px);   /* πόσο χαμηλά ξεκινάει ο τίτλος (στο κέντρο της οθόνης) */
     --start-scale: 1.9;          /* πόσο μεγάλος ξεκινάει ο τίτλος */
   }
 
@@ -25,7 +25,7 @@
     color: #fff;
     font-family: "Syne", "Arial Black", "Segoe UI", sans-serif;
     font-weight: 800;
-    min-height: 100vh;
+    min-height: 100dvh;
     overflow-x: hidden;
   }
 
@@ -61,7 +61,7 @@
     flex-direction: column;
     align-items: center;
     justify-content: space-between;
-    min-height: 62vh;
+    min-height: 62dvh;
     padding: 34px 26px 36px;
     text-align: center;
     color: #fff;
@@ -114,7 +114,7 @@
   }
 
   @media (max-width: 800px) {
-    :root { --drop: calc(50vh - 58px); --start-scale: 1.35; }
+    :root { --drop: calc(50dvh - 58px); --start-scale: 1.35; }
     .cards { grid-template-columns: 1fr; }
     .soon { grid-template-columns: 1fr; }
     .card { min-height: 300px; }
