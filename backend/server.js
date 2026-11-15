@@ -3,11 +3,11 @@
 
 const http = require('http');
 
+// Οι κωδικοί και το τι κερδίζει ο καθένας (δες το αρχείο codes.js)
+const rawCodes = require('./codes');
+
 // Το Render δίνει μόνο του την πόρτα μέσω της μεταβλητής PORT
 const PORT = process.env.PORT || 3000;
-
-// Ο κωδικός που πρέπει να γράψουν οι χρήστες. Μένει εδώ στον server, ποτέ μέσα στη σελίδα.
-const SECRET_CODE = 'XMAS-2026';
 
 // Η στιγμή που ανοίγει η εξαργύρωση: 25 Δεκεμβρίου 2026, 00:00 ώρα Ελλάδας (UTC+2 τον χειμώνα).
 // Για να ανοίξει την 1η Ιανουαρίου, χρησιμοποίησε '2027-01-01T00:00:00+02:00'.
@@ -16,15 +16,18 @@ const UNLOCK_AT = process.env.UNLOCK_AT || '2026-12-25T00:00:00+02:00';
 
 // Η διεύθυνση του frontend (Vercel ή Netlify), π.χ. https://to-site-mou.netlify.app
 // Μόνο αυτή η σελίδα επιτρέπεται να μιλάει με τον server. Αν δεν οριστεί, επιτρέπονται όλες.
-const ALLOWED_ORIGIN = process.env.ALLOWED_ORIGIN || '*';
+// Αφαιρούνται αυτόματα τα κενά και ο κάθετος (/) στο τέλος, γιατί ο browser τα θέλει ακριβώς όπως είναι
+const ALLOWED_ORIGIN = (process.env.ALLOWED_ORIGIN || '*').trim().replace(/\/+$/, '');
 
-// Προαιρετικό μυστικό κλειδί για να βλέπεις τη λίστα ονομάτων στο /api/names?token=...
-// Αν δεν οριστεί, η λίστα φαίνεται μόνο στα logs του Render.
-const ADMIN_TOKEN = process.env.ADMIN_TOKEN || '';
+// Τα μηνύματα που βλέπει ο χρήστης. Άλλαξέ τα όπως θέλεις.
+const LOSE_MESSAGE = 'Δεν το έτυχες! Δεν πειράζει. Καλά Χριστούγεννα!';
+function winMessage(name) {
+  return 'Μπράβο, ' + name + '! Κέρδισες το μυστικό δώρο! Το όνομά σου σημειώθηκε.';
+}
 
-// Τα ονόματα κρατιούνται μόνο στη μνήμη (RAM). Χάνονται όταν ο server κάνει restart.
-const names = [];
-const MAX_NAMES = 5000;
+// Βάζουμε τους κωδικούς σε έναν πίνακα με κεφαλαία γράμματα, για να μην έχει σημασία πώς θα τους γράψει κανείς
+const codes = new Map();
+for (const key of Object.keys(rawCodes)) codes.set(key.trim().toUpperCase(), rawCodes[key]);
 
 // Απλός περιορισμός προσπαθειών ανά IP, για να μη δοκιμάζει κανείς πολλούς κωδικούς
 const attempts = new Map();
@@ -112,32 +115,28 @@ const server = http.createServer(async (req, res) => {
       return sendJson(res, 400, { success: false, message: 'Λάθος αίτημα.' });
     }
 
-    const name = String(body.name || '').trim().slice(0, 60);
-    const code = String(body.code || '').trim();
+    // Αφαιρούμε τις αλλαγές γραμμής από το όνομα, ώστε να μη γράφει κανείς πολλές γραμμές στα logs
+    const name = String(body.name || '').replace(/[\r\n]+/g, ' ').trim().slice(0, 60);
+    const code = String(body.code || '').trim().toUpperCase();
 
     if (!name) return sendJson(res, 400, { success: false, message: 'Γράψε το όνομά σου.' });
 
-    // Σύγκρινε τον κωδικό, αγνοώντας κεφαλαία και μικρά γράμματα
-    if (code.toUpperCase() !== SECRET_CODE.toUpperCase()) {
+    // Ο κωδικός δεν υπάρχει στη λίστα
+    if (!codes.has(code)) {
       return sendJson(res, 400, { success: false, message: 'Ο κωδικός δεν είναι σωστός. Δοκίμασε ξανά.' });
     }
 
-    // Αφαίρεσε τις αλλαγές γραμμής, τύπωσε το όνομα στα logs και κράτα το στη μνήμη
-    const cleanName = name.replace(/[\r\n]+/g, ' ');
-    const entry = new Date().toISOString() + ' - ' + cleanName;
-    console.log('ΝΕΟ ΟΝΟΜΑ: ' + entry);
-    if (names.length < MAX_NAMES) names.push(entry);
+    const result = codes.get(code);
 
-    return sendJson(res, 200, { success: true });
-  }
-
-  // Λίστα ονομάτων, μόνο με το σωστό μυστικό κλειδί
-  if (url.pathname === '/api/names' && req.method === 'GET') {
-    if (!ADMIN_TOKEN || url.searchParams.get('token') !== ADMIN_TOKEN) {
-      return sendJson(res, 404, { message: 'Δεν βρέθηκε.' });
+    // Ο τυχερός κωδικός: μόνο σε αυτή την περίπτωση γράφεται το όνομα στα logs του Render
+    if (result === 'win') {
+      console.log('ΝΙΚΗΤΗΣ: ' + new Date().toISOString() + ' - ' + name + ' (κωδικός ' + code + ')');
+      return sendJson(res, 200, { success: true, won: true, message: winMessage(name) });
     }
-    res.writeHead(200, { 'Content-Type': 'text/plain; charset=utf-8' });
-    return res.end(names.join('\n'));
+
+    // Όλοι οι άλλοι: το απλό μήνυμα, ή δικό σου κείμενο αν έχεις γράψει κάτι άλλο στο codes.js
+    const text = (result && result !== 'lose') ? String(result) : LOSE_MESSAGE;
+    return sendJson(res, 200, { success: true, won: false, message: text });
   }
 
   sendJson(res, 404, { message: 'Δεν βρέθηκε.' });
